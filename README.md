@@ -155,3 +155,7 @@ kubectl get pods -n messaging
 - **RabbitMQ** via Bitnami Helm chart v14.6.6
 - **S3** Remote state backend
 - **GitHub Actions** CI/CD
+
+## Acknowledgments
+
+This project was developed with the assistance of [Claude](https://claude.com/claude-code) (Anthropic) as an AI pair-programming tool for code implementation, debugging, and documentation.
