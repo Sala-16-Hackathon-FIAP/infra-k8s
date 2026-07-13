@@ -2,6 +2,8 @@
 
 Terraform infrastructure for provisioning the foundational AWS resources for the FIAP-X video processing platform: networking, EKS cluster, S3 storage, and RabbitMQ messaging.
 
+> 📐 **System architecture:** see [`docs/architecture.md`](docs/architecture.md) for the full platform design (components, event-driven saga, reliability model, infra and CI/CD diagrams) and the [Architecture Decision Records](docs/adr/). This README covers the Kubernetes/infra layer only.
+
 ## Architecture Overview
 
 ```
