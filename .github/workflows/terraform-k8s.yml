@@ -70,3 +70,20 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: .
         run: kubectl apply -f k8s/rabbitmq-management-svc.yaml
+
+      - name: Print e2e-tests secrets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "============================================"
+          echo "  Valores para os secrets do e2e-tests"
+          echo "============================================"
+          echo ""
+          echo "S3_BUCKET=$(terraform -chdir=terraform output -raw s3_videos_bucket_name)"
+          echo "S3_ENDPOINT=https://s3.us-east-1.amazonaws.com"
+          RABBIT_NLB=$(kubectl get svc rabbitmq-management -n messaging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+          if [ -n "$RABBIT_NLB" ]; then
+            echo "RABBITMQ_HOST=${RABBIT_NLB}"
+          else
+            echo "RABBITMQ_HOST=rabbitmq.messaging.svc.cluster.local (interno ao cluster)"
+          fi
+          echo "============================================"
