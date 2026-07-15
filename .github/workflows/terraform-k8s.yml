@@ -2,7 +2,7 @@ name: Provision K8s Infrastructure
 
 on:
   push:
-    branches: ["main", "feature/modulo5"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
 
@@ -54,7 +54,7 @@ jobs:
         run: terraform plan
 
       - name: Terraform Apply
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/modulo5')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           TF_VAR_aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
           TF_VAR_rabbitmq_username: ${{ secrets.RABBITMQ_USERNAME }}
@@ -62,11 +62,11 @@ jobs:
         run: terraform apply -auto-approve
 
       - name: Update kubeconfig
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/modulo5')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: .
         run: aws eks update-kubeconfig --name fiapx-cluster --region us-east-1
 
       - name: Expose RabbitMQ Management UI
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/modulo5')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: .
         run: kubectl apply -f k8s/rabbitmq-management-svc.yaml
