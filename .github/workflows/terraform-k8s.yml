@@ -1,0 +1,89 @@
+name: Provision K8s Infrastructure
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  terraform:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Ensure S3 state bucket exists
+        run: |
+          BUCKET_NAME="fiapx-sala16-terraform-state"
+          REGION="us-east-1"
+          if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Creating state bucket..."
+            aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$REGION"
+            sleep 15
+          else
+            echo "State bucket already exists."
+          fi
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        env:
+          TF_VAR_aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+          TF_VAR_rabbitmq_username: ${{ secrets.RABBITMQ_USERNAME }}
+          TF_VAR_rabbitmq_password: ${{ secrets.RABBITMQ_PASSWORD }}
+        run: terraform plan
+
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          TF_VAR_aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+          TF_VAR_rabbitmq_username: ${{ secrets.RABBITMQ_USERNAME }}
+          TF_VAR_rabbitmq_password: ${{ secrets.RABBITMQ_PASSWORD }}
+        run: terraform apply -auto-approve
+
+      - name: Update kubeconfig
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: .
+        run: aws eks update-kubeconfig --name fiapx-cluster --region us-east-1
+
+      - name: Expose RabbitMQ Management UI
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: .
+        run: kubectl apply -f k8s/rabbitmq-management-svc.yaml
+
+      - name: Print e2e-tests secrets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "============================================"
+          echo "  Valores para os secrets do e2e-tests"
+          echo "============================================"
+          echo ""
+          echo "S3_BUCKET=$(terraform -chdir=terraform output -raw s3_videos_bucket_name)"
+          echo "S3_ENDPOINT=https://s3.us-east-1.amazonaws.com"
+          RABBIT_NLB=$(kubectl get svc rabbitmq-management -n messaging -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+          if [ -n "$RABBIT_NLB" ]; then
+            echo "RABBITMQ_HOST=${RABBIT_NLB}"
+          else
+            echo "RABBITMQ_HOST=rabbitmq.messaging.svc.cluster.local (interno ao cluster)"
+          fi
+          echo "============================================"
