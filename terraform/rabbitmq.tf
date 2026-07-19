@@ -14,11 +14,6 @@ resource "helm_release" "rabbitmq" {
   namespace  = kubernetes_namespace.messaging.metadata[0].name
 
   set {
-    name  = "global.imageRegistry"
-    value = "public.ecr.aws"
-  }
-
-  set {
     name  = "auth.username"
     value = var.rabbitmq_username
   }
