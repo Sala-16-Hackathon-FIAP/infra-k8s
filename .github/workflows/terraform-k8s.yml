@@ -3,8 +3,6 @@ name: Provision K8s Infrastructure
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
 
 jobs:
   terraform:
@@ -33,7 +31,7 @@ jobs:
 
       - name: Ensure S3 state bucket exists
         run: |
-          BUCKET_NAME="fiapx-sala16-terraform-state"
+          BUCKET_NAME="fiapx-sala16-v2-terraform-state"
           REGION="us-east-1"
           if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
             echo "Creating state bucket..."
