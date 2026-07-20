@@ -64,6 +64,11 @@ jobs:
         working-directory: .
         run: aws eks update-kubeconfig --name fiapx-cluster --region us-east-1
 
+      - name: Install metrics-server
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: .
+        run: kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
       - name: Expose RabbitMQ Management UI
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: .
