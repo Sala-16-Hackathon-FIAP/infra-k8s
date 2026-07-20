@@ -71,6 +71,7 @@ jobs:
 
       - name: Print e2e-tests secrets
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: .
         run: |
           echo "============================================"
           echo "  Valores para os secrets do e2e-tests"
