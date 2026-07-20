@@ -8,7 +8,7 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app.kubernetes.io/name: rabbitmq
+    app: rabbitmq
   ports:
     - name: management
       port: 15672
