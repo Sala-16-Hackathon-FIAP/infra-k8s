@@ -10,7 +10,7 @@ resource "helm_release" "rabbitmq" {
   name       = "rabbitmq"
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "rabbitmq"
-  version    = "14.6.6"
+  version    = "14.7.0"
   namespace  = kubernetes_namespace.messaging.metadata[0].name
 
   set {
