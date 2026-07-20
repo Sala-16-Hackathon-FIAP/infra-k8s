@@ -6,58 +6,121 @@ resource "kubernetes_namespace" "messaging" {
   depends_on = [aws_eks_node_group.default]
 }
 
-resource "helm_release" "rabbitmq" {
-  name       = "rabbitmq"
-  repository = "https://charts.bitnami.com/bitnami"
-  chart      = "rabbitmq"
-  version    = "14.6.6"
-  namespace  = kubernetes_namespace.messaging.metadata[0].name
-
-  set {
-    name  = "auth.username"
-    value = var.rabbitmq_username
+resource "kubernetes_secret" "rabbitmq" {
+  metadata {
+    name      = "rabbitmq-secrets"
+    namespace = kubernetes_namespace.messaging.metadata[0].name
   }
 
-  set_sensitive {
-    name  = "auth.password"
-    value = var.rabbitmq_password
+  data = {
+    RABBITMQ_DEFAULT_USER = var.rabbitmq_username
+    RABBITMQ_DEFAULT_PASS = var.rabbitmq_password
+  }
+}
+
+resource "kubernetes_stateful_set" "rabbitmq" {
+  metadata {
+    name      = "rabbitmq"
+    namespace = kubernetes_namespace.messaging.metadata[0].name
+    labels = {
+      app = "rabbitmq"
+    }
   }
 
-  set {
-    name  = "replicaCount"
-    value = "1"
-  }
+  spec {
+    service_name = "rabbitmq"
+    replicas     = 1
 
-  # Persistence disabled — cluster does not have the aws-ebs-csi-driver addon.
-  # To enable, add the addon via aws_eks_addon in eks.tf and set to true.
-  set {
-    name  = "persistence.enabled"
-    value = "false"
-  }
+    selector {
+      match_labels = {
+        app = "rabbitmq"
+      }
+    }
 
-  set {
-    name  = "resources.requests.cpu"
-    value = "200m"
-  }
+    template {
+      metadata {
+        labels = {
+          app = "rabbitmq"
+        }
+      }
 
-  set {
-    name  = "resources.requests.memory"
-    value = "256Mi"
-  }
+      spec {
+        container {
+          name  = "rabbitmq"
+          image = "rabbitmq:3.13-management"
 
-  set {
-    name  = "resources.limits.memory"
-    value = "512Mi"
-  }
+          port {
+            container_port = 5672
+            name           = "amqp"
+          }
 
-  set {
-    name  = "service.type"
-    value = "ClusterIP"
-  }
+          port {
+            container_port = 15672
+            name           = "management"
+          }
 
-  timeout      = 600
-  wait         = false
-  force_update = true
+          env_from {
+            secret_ref {
+              name = kubernetes_secret.rabbitmq.metadata[0].name
+            }
+          }
+
+          resources {
+            requests = {
+              cpu    = "200m"
+              memory = "256Mi"
+            }
+            limits = {
+              memory = "512Mi"
+            }
+          }
+
+          readiness_probe {
+            tcp_socket {
+              port = 5672
+            }
+            initial_delay_seconds = 30
+            period_seconds        = 10
+          }
+
+          liveness_probe {
+            tcp_socket {
+              port = 5672
+            }
+            initial_delay_seconds = 60
+            period_seconds        = 15
+          }
+        }
+      }
+    }
+  }
 
   depends_on = [kubernetes_namespace.messaging]
+}
+
+resource "kubernetes_service" "rabbitmq" {
+  metadata {
+    name      = "rabbitmq"
+    namespace = kubernetes_namespace.messaging.metadata[0].name
+  }
+
+  spec {
+    selector = {
+      app = "rabbitmq"
+    }
+
+    port {
+      name        = "amqp"
+      port        = 5672
+      target_port = 5672
+    }
+
+    port {
+      name        = "management"
+      port        = 15672
+      target_port = 15672
+    }
+
+    type = "ClusterIP"
+  }
 }
