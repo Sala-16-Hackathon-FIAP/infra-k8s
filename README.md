@@ -2,6 +2,10 @@
 
 Terraform infrastructure for provisioning the foundational AWS resources for the FIAP-X video processing platform: networking, EKS cluster, S3 storage, and RabbitMQ messaging.
 
+![FIAP-X platform architecture](docs/architecture.png)
+
+> High-level architecture of the FIAP-X platform — microservices, choreographed saga over RabbitMQ, database-per-service (RDS), object storage (S3), running on EKS and provisioned with Terraform.
+
 ## Architecture Overview
 
 ```
@@ -42,7 +46,7 @@ Terraform infrastructure for provisioning the foundational AWS resources for the
 - **Security**: All public access blocked
 
 ### RabbitMQ (`rabbitmq.tf`)
-- **Helm Chart**: Bitnami RabbitMQ v14.6.6 in `messaging` namespace
+- **Workload**: Kubernetes `StatefulSet` (image `rabbitmq:3.13-management`) in `messaging` namespace — provisioned directly via the Terraform Kubernetes provider (no Helm/Bitnami chart)
 - **Service**: ClusterIP (internal access at `rabbitmq.messaging.svc.cluster.local`)
 - **Management UI**: Exposed via NLB on port 15672 (`k8s/rabbitmq-management-svc.yaml`)
 - **Persistence**: Disabled (no EBS CSI driver in Academy environment)
@@ -57,7 +61,7 @@ Terraform infrastructure for provisioning the foundational AWS resources for the
 State is stored remotely in S3:
 
 ```
-Bucket: fiapx-terraform-state
+Bucket: fiapx-sala16-v2-terraform-state
 Key:    k8s/terraform.tfstate
 Region: us-east-1
 ```
@@ -152,7 +156,7 @@ kubectl get pods -n messaging
 - **AWS EKS** Kubernetes 1.31
 - **AWS VPC** with public and private subnets
 - **AWS S3** for video storage
-- **RabbitMQ** via Bitnami Helm chart v14.6.6
+- **RabbitMQ** `3.13-management` via Kubernetes `StatefulSet` (Terraform Kubernetes provider)
 - **S3** Remote state backend
 - **GitHub Actions** CI/CD
 
